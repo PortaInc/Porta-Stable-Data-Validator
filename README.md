@@ -1,7 +1,7 @@
 # Porta Charging Data Validation Script
 
 ![Porta Logo](porta.png)
-![Stable Auto Logo](stableauto.png)
+![Stable Auto Logo](stable.png)
 
 This repository contains a Python script to validate the charging data provided by the Porta API. The script fetches charger usage data for all active Electrify America chargers in California and performs several validation checks to ensure data integrity for Stable. 
 
@@ -40,8 +40,8 @@ This script is designed to:
 Clone this repository to your local machine:
 
 ```bash
-git clone https://github.com/portainc/Porta-Stable-Data-Validator.git
-cd your_project
+git clone https://github.com/PortaInc/Porta-Stable-Data-Validator.git
+cd Porta-Stable-Data-Validator
 ```
 
 ### 2. Create a Virtual Environment
@@ -88,7 +88,7 @@ colorama==0.4.6
 Execute the validation script:
 
 ```bash
-python validate_chargers.py
+python3 validate_charger_usages.py
 ```
 
 ## Expected Output
