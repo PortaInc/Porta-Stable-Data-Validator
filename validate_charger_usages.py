@@ -1,14 +1,29 @@
 import requests
-import pytz
 import sys
 import logging
 import time
 from collections import defaultdict
 from tabulate import tabulate
 from colorama import init, Fore, Style
+from dotenv import load_dotenv
+import os
 
-# Easier to read output in the terminal
+from validators import (
+    validate_pricing,
+    validate_timezone_data,
+    validate_stalls_available
+)
+
+# colorized terminal output
 init(autoreset=True)
+
+load_dotenv()
+
+API_KEY = os.getenv('API_KEY')
+
+if not API_KEY:
+    print(Fore.RED + "Error: API_KEY not found in environment variables.")
+    sys.exit(1)
 
 logging.basicConfig(
     filename='validation.log',
@@ -17,22 +32,16 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-def validate_timezone(timezone_str):
-    """
-    Validate if the timezone string is a valid IANA timezone.
-    """
-    try:
-        pytz.timezone(timezone_str)
-        return True
-    except pytz.UnknownTimeZoneError:
-        return False
-
 def main():
-    charger_ids_url = 'https://api-stg.portacharging.com/v1/chargers/california/electrifyAmerica'
+    charger_ids_url = 'https://api.portacharging.com/v1/chargers/california/electrifyAmerica'
 
-    # fetching all EA chargers in California from Porta
+    headers = {
+        'Authorization': f'Bearer {API_KEY}'
+    }
+
+    # fetching all EA chargers in CA from Porta
     try:
-        response = requests.get(charger_ids_url)
+        response = requests.get(charger_ids_url, headers=headers)
         response.raise_for_status()
     except requests.RequestException as e:
         logging.error(f"Failed to fetch charger IDs: {e}")
@@ -46,13 +55,13 @@ def main():
     overall_results = []
 
     for charger_id in charger_ids:
-        usages_url = f'https://api-stg.portacharging.com/v1/chargers/{charger_id}/usages'
+        usages_url = f'https://api.portacharging.com/v1/chargers/{charger_id}/usages'
         charger_errors = defaultdict(int)
         charger_error_details = []
         num_usage_docs = 0
 
         try:
-            response = requests.get(usages_url)
+            response = requests.get(usages_url, headers=headers)
             response.raise_for_status()
         except requests.RequestException as e:
             logging.error(f"Failed to fetch usages for {charger_id}: {e}")
@@ -82,16 +91,10 @@ def main():
         print(f"Name: {charger_name}")
         print(f"Location: {location_str}")
 
-        # Third test case
-        if 'pricing' not in charger:
-            error_message = f"Pricing object missing for charger {charger_id}"
-            logging.warning(error_message)
-            charger_errors['Pricing Missing'] += 1
-            charger_error_details.append({
-                'error_type': 'Pricing Missing',
-                'message': error_message,
-                'timestamp': 'N/A'
-            })
+        errors = validate_pricing(charger, charger_id)
+        for error in errors:
+            charger_errors[error['error_type']] += 1
+            charger_error_details.append(error)
 
         usage_data_list = data.get('usageData', [])
         if not usage_data_list:
@@ -109,84 +112,16 @@ def main():
 
         for usage_data in usage_data_list:
             num_usage_docs += 1
-            timestamp = usage_data.get('timestamp', 'Unknown Timestamp')
 
-            # First test case: validating timezone
-            timezone = usage_data.get('timezone')
-            if not timezone:
-                error_message = f"Timezone missing in usage data at {timestamp}"
-                logging.error(f"{error_message} for charger {charger_id}")
-                charger_errors['Timezone Missing'] += 1
-                charger_error_details.append({
-                    'error_type': 'Timezone Missing',
-                    'message': error_message,
-                    'timestamp': timestamp
-                })
-            elif not validate_timezone(timezone):
-                error_message = f"Invalid timezone '{timezone}' in usage data at {timestamp}"
-                logging.error(f"{error_message} for charger {charger_id}")
-                charger_errors['Invalid Timezone'] += 1
-                charger_error_details.append({
-                    'error_type': 'Invalid Timezone',
-                    'message': error_message,
-                    'timestamp': timestamp
-                })
+            errors = validate_timezone_data(usage_data, charger_id)
+            for error in errors:
+                charger_errors[error['error_type']] += 1
+                charger_error_details.append(error)
 
-            # Test Case 2: validating stallsAvailable
-            stalls_available_reported = usage_data.get('stallsAvailable')
-            total_stalls = usage_data.get('totalStalls')
-            stall_usage = usage_data.get('stallUsage', [])
-
-            # cunting available stalls based on connector statuses
-            stalls_available_count = 0
-            for stall in stall_usage:
-                connectors = stall.get('connectors', [])
-                stall_available = any(connector.get('status') == 0 for connector in connectors)
-                if stall_available:
-                    stalls_available_count += 1
-
-            if stalls_available_reported != stalls_available_count:
-                error_message = (
-                    f"Stalls available mismatch at {timestamp}: "
-                    f"Reported {stalls_available_reported}, Calculated {stalls_available_count}"
-                )
-                logging.error(f"{error_message} for charger {charger_id}")
-                charger_errors['Stalls Available Mismatch'] += 1
-                charger_error_details.append({
-                    'error_type': 'Stalls Available Mismatch',
-                    'message': error_message,
-                    'timestamp': timestamp
-                })
-
-            # validating total stalls
-            if total_stalls != len(stall_usage):
-                error_message = (
-                    f"Total stalls mismatch at {timestamp}: "
-                    f"Reported {total_stalls}, Actual {len(stall_usage)}"
-                )
-                logging.error(f"{error_message} for charger {charger_id}")
-                charger_errors['Total Stalls Mismatch'] += 1
-                charger_error_details.append({
-                    'error_type': 'Total Stalls Mismatch',
-                    'message': error_message,
-                    'timestamp': timestamp
-                })
-
-            # Here we're ensuring that totalStalls = stallsAvailable + stallsNotAvailable
-            stalls_not_available = total_stalls - stalls_available_reported
-            calculated_total_stalls = stalls_available_reported + stalls_not_available
-            if total_stalls != calculated_total_stalls:
-                error_message = (
-                    f"Total stalls calculation error at {timestamp}: "
-                    f"Expected {total_stalls}, Calculated {calculated_total_stalls}"
-                )
-                logging.error(f"{error_message} for charger {charger_id}")
-                charger_errors['Total Stalls Calculation Error'] += 1
-                charger_error_details.append({
-                    'error_type': 'Total Stalls Calculation Error',
-                    'message': error_message,
-                    'timestamp': timestamp
-                })
+            errors = validate_stalls_available(usage_data, charger_id)
+            for error in errors:
+                charger_errors[error['error_type']] += 1
+                charger_error_details.append(error)
 
         overall_results.append({
             'Charger ID': charger_id,
@@ -208,7 +143,7 @@ def main():
 
             for error_type, errors in error_summary.items():
                 print(Fore.RED + f"- {error_type}: {len(errors)} occurrences")
-                # Show up to 5 example timestamps
+                # showing up to 5 to avoid cluttering the console
                 example_errors = errors[:5]
                 timestamps = [err['timestamp'] for err in example_errors]
                 print(f"  Example timestamps: {', '.join(timestamps)}")
@@ -216,10 +151,10 @@ def main():
         else:
             print(Fore.GREEN + "No errors found for this charger.\n")
 
-        # added a delay so we don't DDOS our API 
+        # added a delay to avoid overloading our API
         time.sleep(1)
 
-    # summary table after all of the chargers have been processed
+    # summary table 
     print("\nValidation Summary:")
     headers = [
         'Charger ID',

@@ -13,6 +13,7 @@ This repository contains a Python script to validate the charging data provided 
   - [2. Create a Virtual Environment](#2-create-a-virtual-environment)
   - [3. Activate the Virtual Environment](#3-activate-the-virtual-environment)
   - [4. Install Dependencies](#4-install-dependencies)
+  - [5. Set Up the API Key](#5-set-up-the-api-key)
 - [Running the Script](#running-the-script)
 - [Expected Output](#expected-output)
 - [Contact Information](#contact-information)
@@ -80,7 +81,35 @@ requests==2.31.0
 pytz==2023.3
 tabulate==0.9.0
 colorama==0.4.6
+python-dotenv==1.0.0
 ```
+
+### 5. Set Up the API Key
+
+The script requires an API key to authenticate requests to the Porta Charging API. The API key should be stored in a `.env` file in the root directory of the project.
+
+1. **Create a `.env` file** in the root directory:
+
+   ```bash
+   touch .env
+   ```
+
+2. **Add your API key** to the `.env` file:
+
+   ```env
+   API_KEY=<Put API key from Eliot here>
+   ```
+
+   Replace `your_api_key_here` with the actual API key provided to you.
+
+3. **Ensure the `.env` file is not committed** to the repository:
+
+   - The `.gitignore` file includes an entry to ignore the `.env` file.
+
+   ```gitignore
+   # Secret configuration files
+   .env
+   ```
 
 ## Running the Script
 
@@ -89,6 +118,8 @@ Execute the validation script:
 ```bash
 python3 validate_charger_usages.py
 ```
+
+**Note**: Ensure the virtual environment is activated and the `.env` file is properly set up before running the script.
 
 ## Expected Output
 
@@ -130,6 +161,16 @@ Validation Summary:
 | ...                           | ...                         | ...                                   |                   ... |           ... |
 +-------------------------------+-----------------------------+---------------------------------------+-----------------------+---------------+
 ```
+
+---
+
+## Additional Notes
+
+- **Security**: The API key is stored securely in the `.env` file and is not committed to the repository, following best practices.
+- **Environment Variables**: You can set the `API_KEY` as an environment variable in your system if you prefer not to use a `.env` file.
+- **Error Handling**: The script will exit if the `API_KEY` is not found, preventing unauthorized requests.
+
+---
 
 ## Contact Information
 
