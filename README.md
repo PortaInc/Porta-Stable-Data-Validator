@@ -95,7 +95,7 @@ python3 validate_charger_usages.py
 As the script runs, it will:
 
 - Print progress messages for each charger, including the charger ID, name, and location.
-- Introduce a 2-second delay after processing each charger to manage API load.
+- Introduce a 1-second delay after processing each charger to manage API load.
 - Display errors found during validation, summarized per charger.
 - At the end, a summary table will be printed, showing the results for all chargers.
 
