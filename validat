@@ -1,3 +1,5 @@
+# validate_chargers.py
+
 import requests
 import sys
 import logging
@@ -8,13 +10,14 @@ from colorama import init, Fore, Style
 from dotenv import load_dotenv
 import os
 
+# Import validation functions
 from validators import (
     validate_pricing,
     validate_timezone_data,
     validate_stalls_available
 )
 
-# Initialize colorama for colorized terminal output
+# Initialize colorama for better terminal output
 init(autoreset=True)
 
 load_dotenv()
@@ -39,33 +42,17 @@ def main():
         'Authorization': f'Bearer {API_KEY}'
     }
 
-    # Fetching all EA chargers in CA from Porta
+    # Fetching all EA chargers in California from Porta
     try:
         response = requests.get(charger_ids_url, headers=headers)
         response.raise_for_status()
-    except requests.HTTPError as e:
-        # Get the status code
-        status_code = e.response.status_code if e.response else None
-        error_message = e.response.text if e.response else str(e)
-
-        if status_code == 401:
-            print(Fore.RED + "Error: Unauthorized access. Please check your API key.")
-        elif status_code == 403:
-            print(Fore.RED + "Error: Forbidden. You do not have permission to access this resource.")
-        else:
-            print(Fore.RED + f"HTTP Error {status_code}: {error_message}")
-
-        logging.error(f"Failed to fetch charger IDs: {e}")
-        sys.exit(1)
     except requests.RequestException as e:
-        print(Fore.RED + f"Error: Failed to fetch charger IDs. {str(e)}")
         logging.error(f"Failed to fetch charger IDs: {e}")
         sys.exit(1)
 
     charger_ids = response.json().get('chargerIds', [])
     if not charger_ids:
         logging.error("No charger IDs found in the response.")
-        print(Fore.RED + "Error: No charger IDs found in the response.")
         sys.exit(1)
 
     overall_results = []
@@ -79,17 +66,7 @@ def main():
         try:
             response = requests.get(usages_url, headers=headers)
             response.raise_for_status()
-        except requests.HTTPError as e:
-            status_code = e.response.status_code if e.response else None
-            error_message = e.response.text if e.response else str(e)
-
-            if status_code == 401:
-                print(Fore.RED + f"Error: Unauthorized access for charger {charger_id}. Please check your API key.")
-            elif status_code == 403:
-                print(Fore.RED + f"Error: Forbidden access for charger {charger_id}.")
-            else:
-                print(Fore.RED + f"HTTP Error {status_code} for charger {charger_id}: {error_message}")
-
+        except requests.RequestException as e:
             logging.error(f"Failed to fetch usages for {charger_id}: {e}")
             charger_errors['API Errors'] += 1
             overall_results.append({
@@ -99,6 +76,7 @@ def main():
                 'Usage Docs Processed': num_usage_docs,
                 'Total Errors': sum(charger_errors.values())
             })
+            print(Fore.RED + f"Processing charger ID: {charger_id} - Failed to fetch data.\n")
             time.sleep(1)
             continue
 
@@ -116,6 +94,7 @@ def main():
         print(f"Name: {charger_name}")
         print(f"Location: {location_str}")
 
+        # Test Case 3: Validate pricing
         errors = validate_pricing(charger, charger_id)
         for error in errors:
             charger_errors[error['error_type']] += 1
@@ -138,11 +117,13 @@ def main():
         for usage_data in usage_data_list:
             num_usage_docs += 1
 
+            # Test Case 1: Validate timezone
             errors = validate_timezone_data(usage_data, charger_id)
             for error in errors:
                 charger_errors[error['error_type']] += 1
                 charger_error_details.append(error)
 
+            # Test Case 2: Validate stallsAvailable
             errors = validate_stalls_available(usage_data, charger_id)
             for error in errors:
                 charger_errors[error['error_type']] += 1
@@ -168,7 +149,7 @@ def main():
 
             for error_type, errors in error_summary.items():
                 print(Fore.RED + f"- {error_type}: {len(errors)} occurrences")
-                # showing up to 5 to avoid cluttering the console
+                # Show up to 5 example timestamps
                 example_errors = errors[:5]
                 timestamps = [err['timestamp'] for err in example_errors]
                 print(f"  Example timestamps: {', '.join(timestamps)}")
@@ -176,10 +157,10 @@ def main():
         else:
             print(Fore.GREEN + "No errors found for this charger.\n")
 
-        # added a delay to avoid overloading our API
+        # Added a delay to avoid overloading the API
         time.sleep(1)
 
-    # summary table 
+    # Summary table after all chargers have been processed
     print("\nValidation Summary:")
     headers = [
         'Charger ID',
@@ -193,3 +174,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
