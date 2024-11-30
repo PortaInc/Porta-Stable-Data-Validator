@@ -136,6 +136,5 @@ Validation Summary:
 
 For any questions or issues, please contact:
 
-- **Your Name**
-- **Email**: your.email@example.com
-- **Company**: Porta Charging
+- **Eliot Winchell**
+- **Email**: eliot@portacharging.com
