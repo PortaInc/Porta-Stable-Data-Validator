@@ -16,6 +16,7 @@ venv.bak/
 .DS_Store
 
 # Logs and debug files
+validation.log
 *.log
 *.bak
 *.swp
