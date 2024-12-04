@@ -104,14 +104,14 @@ The script requires an API key to authenticate requests to the Porta Charging AP
 
 The script can be run in three different modes:
 
-1. **Analyze all US chargers** (default):
+1. **Analyze all US EA chargers** (default):
 ```bash
 python3 validate_charger_usages.py
-# or explicitly specify US
-python3 validate_charger_usages.py --region us
+# or explicitly specify United States
+python3 validate_charger_usages.py --region unitedStates
 ```
 
-2. **Analyze California-specific chargers**:
+2. **Analyze California-specific EA chargers**:
 ```bash
 python3 validate_charger_usages.py --region california
 ```

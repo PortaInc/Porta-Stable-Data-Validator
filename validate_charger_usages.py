@@ -118,7 +118,6 @@ def process_charger(charger_id, headers):
     print(f"Name: {charger_name}")
     print(f"Location: {location_str}")
 
-    # Validate pricing
     errors = validate_pricing(charger, charger_id)
     for error in errors:
         charger_errors[error['error_type']] += 1
@@ -157,8 +156,8 @@ def process_charger(charger_id, headers):
 
 def main():
     parser = argparse.ArgumentParser(description='Validate Electrify America charger data')
-    parser.add_argument('--region', choices=['us', 'california'], default='us',
-                      help='Region to analyze (us or california)')
+    parser.add_argument('--region', choices=['unitedStates', 'california'], default='unitedStates',
+                      help='Region to analyze (US or california)')
     parser.add_argument('--charger-id', type=str,
                       help='Specific charger ID to analyze (optional)')
     args = parser.parse_args()
@@ -169,38 +168,49 @@ def main():
     if args.charger_id:
         print(f"Analyzing single charger ID: {args.charger_id}")
         result = process_charger(args.charger_id, headers)
+        display_charger_result(result)
         overall_results.append(result)
     else:
         print(f"Fetching Electrify America charger data for {args.region.upper()}...")
         charger_ids = fetch_charger_ids(args.region)
         for charger_id in charger_ids:
             result = process_charger(charger_id, headers)
+            display_charger_result(result)
             overall_results.append(result)
             time.sleep(0.25)
 
-    for result in overall_results:
-        print(Fore.GREEN + f"Finished processing charger ID: {result['Charger ID']}")
-        print(f"Usage Docs Processed: {result['Usage Docs Processed']}")
-        print(f"Total Errors Found: {result['Total Errors']}")
+    display_summary_table(overall_results)
 
-        if result['Error Details']:
-            print(Fore.RED + "\nError Summary:")
-            error_summary = defaultdict(list)
-            for error in result['Error Details']:
-                error_summary[error['error_type']].append(error)
+def display_charger_result(result):
+    """
+    Helper function to display individual charger results
+    """
+    print(Fore.GREEN + f"Finished processing charger ID: {result['Charger ID']}")
+    print(f"Usage Docs Processed: {result['Usage Docs Processed']}")
+    print(f"Total Errors Found: {result['Total Errors']}")
 
-            for error_type, errors in error_summary.items():
-                print(Fore.RED + f"- {error_type}: {len(errors)} occurrences")
-                example_errors = errors[:5]  # Show up to 5 examples
-                timestamps = [err['timestamp'] for err in example_errors]
-                print(f"  Example timestamps: {', '.join(timestamps)}")
-            print("\n")
-        else:
-            print(Fore.GREEN + "No errors found for this charger.\n")
+    if result['Error Details']:
+        print(Fore.RED + "\nError Summary:")
+        error_summary = defaultdict(list)
+        for error in result['Error Details']:
+            error_summary[error['error_type']].append(error)
 
+        for error_type, errors in error_summary.items():
+            print(Fore.RED + f"- {error_type}: {len(errors)} occurrences")
+            example_errors = errors[:5]  # Show up to 5 examples
+            timestamps = [err['timestamp'] for err in example_errors]
+            print(f"  Example timestamps: {', '.join(timestamps)}")
+        print("\n")
+    else:
+        print(Fore.GREEN + "No errors found for this charger.\n")
+
+def display_summary_table(results):
+    """
+    Helper function to display the summary table
+    """
     print("\nValidation Summary:")
     headers = ['Charger ID', 'Name', 'Location', 'Usage Docs Processed', 'Total Errors']
-    table = [[result[h] for h in headers] for result in overall_results]
+    table = [[result[h] for h in headers] for result in results]
     print(Fore.BLUE + Style.BRIGHT + tabulate(table, headers=headers, tablefmt='grid'))
 
 if __name__ == '__main__':

@@ -3,8 +3,8 @@ import logging
 
 def validate_pricing(charger, charger_id):
     """
-    Validates that the charger data includes 'pricing'.
-    Returns a list of errors found.
+    Validates that the charger data includes 'pricing'
+    Returns a list of errors found
     """
     errors = []
     if 'pricing' not in charger:
@@ -19,8 +19,8 @@ def validate_pricing(charger, charger_id):
 
 def validate_timezone_data(usage_data, charger_id):
     """
-    Validates the timezone in the usage data.
-    Returns a list of errors found.
+    Validates the timezone in the usage data
+    Returns a list of errors found
     """
     errors = []
     timestamp = usage_data.get('timestamp', 'Unknown Timestamp')
@@ -45,7 +45,7 @@ def validate_timezone_data(usage_data, charger_id):
 
 def validate_timezone(timezone_str):
     """
-    Validate if the timezone string is a valid IANA timezone.
+    Validate if the timezone string is a valid IANA timezone
     """
     try:
         pytz.timezone(timezone_str)
@@ -55,8 +55,8 @@ def validate_timezone(timezone_str):
 
 def validate_stalls_available(usage_data, charger_id):
     """
-    Validates the stallsAvailable in the usage data, accounting for connectors with status -2.
-    Returns a list of errors found.
+    Validates the stallsAvailable in the usage data, accounting for connectors with status -2
+    Returns a list of errors found
     """
     errors = []
     timestamp = usage_data.get('timestamp', 'Unknown Timestamp')
@@ -131,7 +131,7 @@ def validate_stalls_available(usage_data, charger_id):
             'timestamp': timestamp
         })
 
-    # ensure totalStalls = stallsAvailable + stallsNotAvailable
+    # Ensure totalStalls = stallsAvailable + stallsNotAvailable
     if total_stalls_reported != stalls_available_reported + stalls_not_available_reported:
         error_message = (
             f"Total stalls calculation error at {timestamp}: "
