@@ -4,6 +4,8 @@
 
 This repository contains a Python script to validate the charging data provided by the Porta API. The script can fetch and validate usage data for Electrify America chargers across the United States, California specifically, or individual chargers.
 
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://app.getpostman.com/run-collection/36722458-c6d7f8ac-463b-4be7-bfd5-83d505937968?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D36722458-c6d7f8ac-463b-4be7-bfd5-83d505937968%26entityType%3Dcollection%26workspaceId%3De9c467fd-fcba-48bd-a6d2-aa805adcc27a)
+
 ## Table of Contents
 
 - [Introduction](#introduction)
