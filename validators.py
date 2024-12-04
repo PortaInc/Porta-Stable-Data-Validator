@@ -55,27 +55,47 @@ def validate_timezone(timezone_str):
 
 def validate_stalls_available(usage_data, charger_id):
     """
-    Validates the stallsAvailable in the usage data.
+    Validates the stallsAvailable in the usage data, accounting for connectors with status -2.
     Returns a list of errors found.
     """
     errors = []
     timestamp = usage_data.get('timestamp', 'Unknown Timestamp')
     stalls_available_reported = usage_data.get('stallsAvailable')
-    total_stalls = usage_data.get('totalStalls')
+    total_stalls_reported = usage_data.get('totalStalls')
     stall_usage = usage_data.get('stallUsage', [])
 
-    # Counting available stalls based on connector statuses
-    stalls_available_count = 0
+    total_stalls_calculated = 0
+    stalls_available_calculated = 0
+
+    # If the connector status is -2, then we failed to fetch their API
+    all_connectors_status_minus2 = True
+
     for stall in stall_usage:
         connectors = stall.get('connectors', [])
-        stall_available = any(connector.get('status') == 0 for connector in connectors)
-        if stall_available:
-            stalls_available_count += 1
+        stall_has_valid_status = False
+        stall_available = False
+        for connector in connectors:
+            status = connector.get('status')
+            if status != -2:
+                all_connectors_status_minus2 = False
+                stall_has_valid_status = True
+                if status == 0:
+                    stall_available = True
+                break  # Exit loop since we have valid status for this connector
+        if stall_has_valid_status:
+            total_stalls_calculated += 1
+            if stall_available:
+                stalls_available_calculated += 1
 
-    if stalls_available_reported != stalls_available_count:
+    if all_connectors_status_minus2:
+        # all connectors have status -2, data unavailable, skip validation
+        logging.info(f"All connectors have status -2 at {timestamp} for charger {charger_id}, skipping stallsAvailable validation")
+        return errors 
+
+    if stalls_available_reported != stalls_available_calculated:
         error_message = (
             f"Stalls available mismatch at {timestamp}: "
-            f"Reported {stalls_available_reported}, Calculated {stalls_available_count}"
+            f"Reported {stalls_available_reported}, Calculated {stalls_available_calculated}"
         )
         logging.error(f"{error_message} for charger {charger_id}")
         errors.append({
@@ -84,11 +104,10 @@ def validate_stalls_available(usage_data, charger_id):
             'timestamp': timestamp
         })
 
-    # Validating total stalls
-    if total_stalls != len(stall_usage):
+    if total_stalls_reported != total_stalls_calculated:
         error_message = (
             f"Total stalls mismatch at {timestamp}: "
-            f"Reported {total_stalls}, Actual {len(stall_usage)}"
+            f"Reported {total_stalls_reported}, Calculated {total_stalls_calculated}"
         )
         logging.error(f"{error_message} for charger {charger_id}")
         errors.append({
@@ -97,13 +116,27 @@ def validate_stalls_available(usage_data, charger_id):
             'timestamp': timestamp
         })
 
-    # Ensuring totalStalls = stallsAvailable + stallsNotAvailable
-    stalls_not_available = total_stalls - stalls_available_reported
-    calculated_total_stalls = stalls_available_reported + stalls_not_available
-    if total_stalls != calculated_total_stalls:
+    stalls_not_available_reported = total_stalls_reported - stalls_available_reported
+    stalls_not_available_calculated = total_stalls_calculated - stalls_available_calculated
+
+    if stalls_not_available_reported != stalls_not_available_calculated:
+        error_message = (
+            f"Stalls not available mismatch at {timestamp}: "
+            f"Reported {stalls_not_available_reported}, Calculated {stalls_not_available_calculated}"
+        )
+        logging.error(f"{error_message} for charger {charger_id}")
+        errors.append({
+            'error_type': 'Stalls Not Available Mismatch',
+            'message': error_message,
+            'timestamp': timestamp
+        })
+
+    # ensure totalStalls = stallsAvailable + stallsNotAvailable
+    if total_stalls_reported != stalls_available_reported + stalls_not_available_reported:
         error_message = (
             f"Total stalls calculation error at {timestamp}: "
-            f"Expected {total_stalls}, Calculated {calculated_total_stalls}"
+            f"Reported totalStalls ({total_stalls_reported}) does not equal stallsAvailable ({stalls_available_reported}) "
+            f"+ stallsNotAvailable ({stalls_not_available_reported})"
         )
         logging.error(f"{error_message} for charger {charger_id}")
         errors.append({
